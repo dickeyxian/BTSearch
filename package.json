@@ -1,0 +1,22 @@
+{
+  "name": "BTSearch",
+  "version": "1.0.0",
+  "description": "nodejs dht search",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dickeyxian/BTSearch.git"
+  },
+  "keywords": [
+    "dht"
+  ],
+  "author": "xian",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/dickeyxian/BTSearch/issues"
+  },
+  "homepage": "https://github.com/dickeyxian/BTSearch"
+}
