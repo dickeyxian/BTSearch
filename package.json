@@ -13,6 +13,11 @@
   "keywords": [
     "dht"
   ],
+  "dependencies": {
+    "bencode": "0.7.0",
+    "lodash": "3.10.1",
+    "randomstring": "1.1.0"
+  },
   "author": "xian",
   "license": "MIT",
   "bugs": {
