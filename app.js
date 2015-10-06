@@ -51,12 +51,13 @@ function decodeNodes(data) {
   var nodes = [];
   for (var i = 0; i + 26 <= data.length; i += 26) {
     nodes.push({
+      id: data.slice(i, i + 20).toString('hex'),
       nid: data.slice(i, i + 20),
       host: data[i + 20] + "." + data[i + 21] + "." + data[i + 22] + "." + data[i + 23],
       port: data.readUInt16BE(i + 24)
     });
   }
-  return nodes;
+  return _.uniq(nodes, 'id');
 }
 
 function getNeighbor(target) {
@@ -183,7 +184,7 @@ DHT.prototype.sendFindNode = function(addr, nid) {
     q: "find_node",
     a: {
       id: this.nid,
-      target: getNeighbor(nid)
+      target: randomID()
     }
   };
   this.sendKRPC(msg, addr);
@@ -193,7 +194,7 @@ DHT.prototype.sendKRPC = function(msg, addr) {
   var buf = bencode.encode(msg);
   this.udp.send(buf, 0, buf.length, addr.port, addr.host, function(err) {
     if (err) {
-      throw err;
+      //throw err;
     }
   });
 };
