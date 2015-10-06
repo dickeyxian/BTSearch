@@ -17,7 +17,9 @@ const BOOTSTRAP_NODES = [
 ];
 
 const TID_LENGTH = 4;
-const MAX_QUEUE_LENGTH =1000;
+const MAX_QUEUE_LENGTH =2000;
+
+var running = false;
 
 function randomID() {
   //return crypto.createHash("sha1")
@@ -57,11 +59,17 @@ function decodeNodes(data) {
   return nodes;
 }
 
+function getNeighbor(target) {
+  return  Buffer.concat([target.slice(0, 10), randomID().slice(10)]);
+}
+
 function DHT(port) {
   this.ktable = new KTable();
   this.udp = dgram.createSocket('udp4');
   this.udp.bind(port);
+  this.nid = randomID();
 }
+
 
 DHT.prototype.log = function(infohash, rinfo) {
   console.log("%s from %s:%s", infohash.toString("hex"), rinfo.address, rinfo.port);
@@ -77,8 +85,6 @@ DHT.prototype.joinDHT = function() {
   });
 };
 
-
-
 DHT.prototype.resolveMsg = function(msg, rinfo) {
   msg = bencode.decode(msg);
   var y = msg.y.toString();
@@ -90,7 +96,15 @@ DHT.prototype.resolveMsg = function(msg, rinfo) {
       }
       break;
     case 'q':
+      console.log('enter')
       let q = msg.q.toString();
+      console.log(q)
+      if (q === 'ping') {
+        this.processPing(msg, rinfo);
+      }
+      if (q === 'find_node') {
+        this.processFindNode(msg, rinfo)
+      }
       if (q === 'get_peers') {
         this.processGetPeers(msg, rinfo);
       }
@@ -99,7 +113,6 @@ DHT.prototype.resolveMsg = function(msg, rinfo) {
       }
   }
 };
-
 DHT.prototype.processFindNodeReceived = function(nodes) {
   var self = this;
   nodes = decodeNodes(nodes);
@@ -110,6 +123,31 @@ DHT.prototype.processFindNodeReceived = function(nodes) {
     self.ktable.push(node);
   });
 };
+
+DHT.prototype.processFindNode = function(msg, rinfo) {
+  this.playDead(msg.t, rinfo);
+};
+
+DHT.prototype.playDead = function(tid, rinfo) {
+  var msg = {
+    t: tid,
+    y: "e",
+    e: [202, "Server Error"]
+  };
+  this.sendKRPC(msg, rinfo);
+};
+
+DHT.prototype.processPing = function(msg, rinfo) {
+  var message = {
+    t: msg.t,
+    y: 'r',
+    r: {
+      'id': randomID()
+    }
+  };
+  this.sendKRPC(message, rinfo);
+};
+
 
 DHT.prototype.processGetPeers = function(msg, rinfo) {
   var info_hash = msg.a.info_hash;
@@ -144,8 +182,8 @@ DHT.prototype.sendFindNode = function(addr, nid) {
     y: "q",
     q: "find_node",
     a: {
-      id: nid,
-      target: randomID()
+      id: this.nid,
+      target: getNeighbor(nid)
     }
   };
   this.sendKRPC(msg, addr);
@@ -160,11 +198,17 @@ DHT.prototype.sendKRPC = function(msg, addr) {
   });
 };
 DHT.prototype.wander = function() {
+  running = true;
   var self = this;
-  this.ktable.nodes.forEach(function(node) {
+  var num = this.ktable.nodes.length;
+  while(num > 0) {
+    num--;
+    let node = this.ktable.nodes.shift();
     self.sendFindNode({host: node.host, port: node.port}, node.nid);
-  });
-  this.ktable.nodes.length = 0;
+  }
+  if (num === 0) {
+    running = false;
+  }
 };
 
 DHT.prototype.start = function() {
@@ -177,7 +221,12 @@ DHT.prototype.start = function() {
     throw err
   });
   timers.setInterval(function() {self.joinDHT()}, 10000);
-  timers.setInterval(function() {self.wander()}, 5000);
+  timers.setInterval(function() {
+    if (running) {
+      return;
+    }
+    self.wander()
+  }, 2000);
 };
 
 function KTable() {
